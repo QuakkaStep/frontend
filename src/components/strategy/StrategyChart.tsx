@@ -2,11 +2,12 @@ import React, { useMemo, useEffect, useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useAppContext } from '../../context/AppContext';
 import { BarChart3 } from 'lucide-react';
+import BreathingLight from '../BreathingLight';
 
 const TRUMP_PRICE_API = import.meta.env.VITE_TRUMP_PRICE_API;
 
 export const StrategyChart = () => {
-  const { strategy } = useAppContext();
+  const { strategy, poolData } = useAppContext();
   const [trumpUsd, setTrumpUsd] = useState<number>(0);
 
   useEffect(() => {
@@ -18,27 +19,33 @@ export const StrategyChart = () => {
       });
   }, []);
 
-  // 生成30次投入，每次投入数量为amountPerStep上下浮动，Y轴为单次step
+  // 生成30次投入，每次价格为上一个价格*（1+step%+波动），Y轴为TRUMP价格，tooltip显示本次投入
   const chartData = useMemo(() => {
-    if (!strategy.amountPerStep || !strategy.step || !strategy.minPrice || !strategy.maxPrice) return [];
-    let lastAmount = strategy.amountPerStep;
+    if (!strategy.amountPerStep || !strategy.step || !poolData.currentPrice) return [];
+    let lastPrice = poolData.currentPrice;
+    const stepRatio = strategy.step / 100;
     return Array.from({ length: 30 }, (_, i) => {
+      // 每次投入数量上下浮动20%
+      const investFluctuation = 1 + (Math.random() * 0.4 - 0.2); // 0.8~1.2
+      const thisInvest = strategy.amountPerStep * investFluctuation;
       if (i > 0) {
-        // ±40%浮动
-        const fluctuation = 1 + (Math.random() * 0.8 - 0.4); // 0.6~1.4
-        lastAmount = strategy.amountPerStep * fluctuation;
+        lastPrice = lastPrice * (1 + stepRatio);
+        const fluctuation = 1 + (Math.random() * 0.1 - 0.05); // 0.95~1.05
+        lastPrice = lastPrice * fluctuation;
       }
       return {
         step: i + 1,
-        lastAmount,
+        price: lastPrice,
+        trumpInvested: thisInvest,
       };
     });
-  }, [strategy]);
+  }, [strategy, poolData.currentPrice]);
 
   return (
     <div className="h-64 md:h-80 flex flex-col">
       <div className="flex items-center mb-4">
-        <BarChart3 size={24} className="mr-2 text-blue-600" />
+        <BreathingLight size={20} />
+        <BarChart3 size={24} className="mx-2 text-blue-600" />
         <h2 className="text-lg font-semibold">AI automatically adds liquidity in a step-by-step manner</h2>
       </div>
       <div className="flex flex-row h-full w-full">
@@ -80,23 +87,29 @@ export const StrategyChart = () => {
               />
               <YAxis
                 label={{
-                  value: 'TRUMP per step',
+                  value: 'TRUMP Price',
                   angle: -90,
                   position: 'insideLeft',
                   style: { textAnchor: 'middle' }
                 }}
-                tickFormatter={v => `${v.toFixed(2)}`}
+                tickFormatter={v => `$${v.toFixed(4)}`}
               />
               <Tooltip
-                formatter={(value, name) => [
-                  `${Number(value).toFixed(4)}`,
-                  'TRUMP per step'
-                ]}
-                labelFormatter={value => `Step ${value}`}
+                formatter={(_value, _name, props) => {
+                  const { payload } = props;
+                  return [
+                    `$${payload?.price?.toFixed(4)}`,
+                    `TRUMP Price`
+                  ];
+                }}
+                labelFormatter={(_label, props) => {
+                  const { payload } = props[0] || {};
+                  return `Step ${payload?.step || ''} | Invested: ${(payload?.trumpInvested || 0).toFixed(4)} TRUMP`;
+                }}
               />
               <Line
                 type="monotone"
-                dataKey="lastAmount"
+                dataKey="price"
                 stroke="#3b82f6"
                 strokeWidth={2}
                 dot={{ r: 3, fill: '#3b82f6' }}

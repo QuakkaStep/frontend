@@ -273,6 +273,9 @@ export const AppContextProvider = ({ children }: { children: ReactNode }) => {
         };
         setWallet(newWallet);
         setShowWalletModal(true);
+        
+        // 生成钱包后立即查询用户配置
+        await fetchUserConfig(result.data.publicKey);
       } else {
         console.error('Failed to generate wallet:', result.message);
       }
