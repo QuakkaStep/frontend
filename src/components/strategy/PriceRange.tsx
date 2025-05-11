@@ -1,8 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { useAppContext } from '../../context/AppContext';
+import { BarChart3 } from 'lucide-react';
 
-const RAYDIUM_API = 'https://api-v3.raydium.io/pools/line/position?id=GQsPr4RJk9AZkkfWHud7v4MtotcxhaYzZHdsPCg9vNvW';
-const POOL_MONITOR_API = 'http://localhost:3002/pool-monitoring/info?poolId=GQsPr4RJk9AZkkfWHud7v4MtotcxhaYzZHdsPCg9vNvW';
+const RAYDIUM_API = import.meta.env.VITE_RAYDIUM_API;
+const API_BASE = import.meta.env.VITE_API_BASE_URL;
+
+const POOL_MONITOR_API = `${API_BASE}/pool-monitoring/info`;
+const POOL_ID = import.meta.env.VITE_POOL_ID;
 
 interface Tick {
   price: string | number;
@@ -15,9 +19,11 @@ export const PriceRange = () => {
   const [currentPrice, setCurrentPrice] = useState<number | null>(null);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const { strategy } = useAppContext();
 
   useEffect(() => {
-    fetch(RAYDIUM_API)
+    
+    fetch(`${RAYDIUM_API}?id=${POOL_ID}`)
       .then(res => {
         if (!res.ok) throw new Error('Raydium API request failed');
         return res.json();
@@ -30,7 +36,10 @@ export const PriceRange = () => {
         }
       })
       .catch(() => setErrorMsg('Raydium API: Failed to fetch data'));
-    fetch(POOL_MONITOR_API)
+
+      console.log(`${POOL_MONITOR_API}?poolId=${POOL_ID}`);
+      
+    fetch(`${POOL_MONITOR_API}?poolId=${POOL_ID}`)
       .then(res => {
         if (!res.ok) throw new Error('Pool monitor API request failed');
         return res.json();
@@ -45,90 +54,95 @@ export const PriceRange = () => {
       .catch(() => setErrorMsg('Pool monitor API: Failed to fetch data'));
   }, []);
 
-  // 只显示当前价格前后20%的价格范围内的刻度
-  let filteredTicks: Tick[] = [];
-  if (currentPrice && ticks.length > 0) {
-    const min = currentPrice * 0.8;
-    const max = currentPrice * 1.2;
-    filteredTicks = ticks.filter((t: Tick) => Number(t.price) >= min && Number(t.price) <= max);
-  }
-  // 只显示部分刻度，避免太密集
-  const displayTicks: Tick[] = filteredTicks.length > 0 ? filteredTicks.filter((_, i) => i % Math.ceil(filteredTicks.length / 20) === 0) : [];
+  // min/max price from context
+  const minPrice = strategy.minPrice;
+  const maxPrice = strategy.maxPrice;
 
-  // 竖直方向的bar高度由父容器撑开
-  let minPercent = 0, maxPercent = 100, pricePercent = 0;
-  let minPrice: number | null = null, maxPrice: number | null = null;
-  if (currentPrice && filteredTicks.length > 1) {
-    minPrice = currentPrice * 0.95;
-    maxPrice = currentPrice * 1.05;
-    const minBar = Number(filteredTicks[0].price);
-    const maxBar = Number(filteredTicks[filteredTicks.length - 1].price);
-    minPercent = ((minPrice - minBar) / (maxBar - minBar)) * 100;
-    maxPercent = ((maxPrice - minBar) / (maxBar - minBar)) * 100;
-    pricePercent = ((currentPrice - minBar) / (maxBar - minBar)) * 100;
-    minPercent = Math.max(0, Math.min(100, minPercent));
-    maxPercent = Math.max(0, Math.min(100, maxPercent));
+  // 计算价格条的显示范围，确保minPrice/maxPrice都能展示
+  let barMin = 0, barMax = 1;
+  if (currentPrice && ticks.length > 0) {
+    // 默认用当前价格±30%
+    let min = currentPrice * 0.7;
+    let max = currentPrice * 1.3;
+    // 如果minPrice/maxPrice超出默认范围，则扩展
+    if (minPrice > 0 && minPrice < min) min = minPrice * 0.98;
+    if (maxPrice > 0 && maxPrice > max) max = maxPrice * 1.02;
+    // 取ticks中最接近的边界
+    const tickMin = Math.min(...ticks.map(t => Number(t.price)));
+    const tickMax = Math.max(...ticks.map(t => Number(t.price)));
+    barMin = Math.max(tickMin, min);
+    barMax = Math.min(tickMax, max);
+    // 但如果minPrice/maxPrice还在外面，直接用minPrice/maxPrice
+    if (minPrice > 0 && minPrice < barMin) barMin = minPrice * 0.98;
+    if (maxPrice > 0 && maxPrice > barMax) barMax = maxPrice * 1.02;
+  }
+
+  // 生成刻度
+  let displayTicks: number[] = [];
+  if (barMax > barMin) {
+    const tickCount = 12;
+    const step = (barMax - barMin) / (tickCount - 1);
+    displayTicks = Array.from({ length: tickCount }, (_, i) => barMin + i * step);
+  }
+
+  // 当前价格在bar上的百分比
+  let pricePercent = 0;
+  if (currentPrice && barMax > barMin) {
+    pricePercent = ((currentPrice - barMin) / (barMax - barMin)) * 100;
     pricePercent = Math.max(0, Math.min(100, pricePercent));
   }
 
   return (
-    <div className="mt-8 flex flex-col h-[calc(100vh-220px)] min-h-64">
-      <h3 className="text-lg font-semibold mb-4">Price Range Configuration</h3>
+    <div className="w-full flex flex-col items-center">
+      {/* 标题和描述 */}
+      <div className="w-full mb-4 flex items-center">
+        <BarChart3 size={22} className="mr-2 text-blue-600" />
+        <h3 className="text-lg font-semibold">Price Range Configuration</h3>
+      </div>
       {errorMsg ? (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
           <strong>Error:</strong> {errorMsg}
         </div>
       ) : (
-        <div className="flex-1 flex flex-row items-stretch w-full h-full select-none relative">
-          {/* 横向箭头（min） */}
-          {minPrice && filteredTicks.length > 1 && (
-            <div className="absolute flex flex-row items-center" style={{ left: '100%', top: `calc(${100 - minPercent}% - 18px)` }}>
-              <ArrowLeft className="w-7 h-7 text-red-600" />
-              <span className="text-xs text-red-600 ml-1">Min<br/>${minPrice.toFixed(4)}</span>
-            </div>
-          )}
-          {/* 横向箭头（max） */}
-          {maxPrice && filteredTicks.length > 1 && (
-            <div className="absolute flex flex-row items-center" style={{ left: '100%', top: `calc(${100 - maxPercent}% - 18px)` }}>
-              <ArrowLeft className="w-7 h-7 text-green-600" />
-              <span className="text-xs text-green-600 ml-1">Max<br/>${maxPrice.toFixed(4)}</span>
-            </div>
-          )}
-          {/* 横向箭头（当前价格） */}
-          {currentPrice && filteredTicks.length > 1 && (
-            <div className="absolute flex flex-row items-center z-20" style={{ left: '100%', top: `calc(${100 - pricePercent}% - 22px)` }}>
-              <ArrowLeft className="w-10 h-10 text-blue-600" />
-              <span className="text-base text-blue-600 font-bold ml-1">Current<br/>${currentPrice.toFixed(4)}</span>
-            </div>
-          )}
-          {/* 竖直刻度条，靠左且高度100%填满 */}
-          <div className="relative flex-1 min-w-[90px] max-w-[120px] bg-yellow-100 rounded-lg border border-yellow-300 flex flex-col items-center self-stretch h-full" style={{alignItems:'flex-start'}}>
-            {/* 刻度线 */}
-            {displayTicks.map((tick, i) => {
-              const percent = ((Number(tick.price) - Number(filteredTicks[0]?.price)) / (Number(filteredTicks[filteredTicks.length - 1]?.price) - Number(filteredTicks[0]?.price))) * 100;
-              return (
-                <div
-                  key={i}
-                  className="absolute left-0 w-full h-0.5 bg-yellow-300"
-                  style={{ bottom: `${percent}%` }}
-                  onMouseEnter={() => setHoveredIdx(i)}
-                  onMouseLeave={() => setHoveredIdx(null)}
-                >
-                  {/* tooltip */}
-                  {hoveredIdx === i && (
-                    <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 bg-white border border-gray-300 rounded px-2 py-1 text-xs shadow z-10 whitespace-nowrap">
-                      Price: {Number(tick.price).toPrecision(6)}<br />
-                      Liquidity: {tick.liquidity}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+        <div className="flex flex-col items-center w-full h-full select-none relative">
+          {/* 横向bar */}
+          <div className="relative w-full h-12 bg-yellow-100 rounded-lg border border-yellow-300 flex items-center mt-4 mb-2" style={{ minWidth: 0 }}>
+            {/* 当前价格点 */}
+            {currentPrice && barMax > barMin && (
+              <div
+                className="absolute z-20 flex flex-col items-center"
+                style={{ left: `calc(${pricePercent}% - 18px)` }}
+              >
+                <div className="w-5 h-10 bg-blue-500 rounded-full flex items-center justify-center shadow-md" />
+                <span className="text-base font-extrabold text-blue-700 mt-1 whitespace-nowrap drop-shadow">{currentPrice.toFixed(4)}</span>
+              </div>
+            )}
+            {/* min/max price 标记 */}
+            {minPrice > 0 && barMax > barMin && (
+              <div
+                className="absolute flex flex-col items-center"
+                style={{ left: `${((minPrice - barMin) / (barMax - barMin)) * 100}%` }}
+              >
+                <span className="px-2 py-1 rounded-lg bg-red-100 text-red-700 font-bold text-xs shadow min-w-[56px] text-center mb-1">Min</span>
+                <span className="text-xs font-mono text-red-600 bg-white rounded px-1 shadow-sm border border-red-100">{minPrice.toFixed(4)}</span>
+              </div>
+            )}
+            {maxPrice > 0 && barMax > barMin && (
+              <div
+                className="absolute flex flex-col items-center"
+                style={{ left: `${((maxPrice - barMin) / (barMax - barMin)) * 100}%` }}
+              >
+                <span className="px-2 py-1 rounded-lg bg-green-100 text-green-700 font-bold text-xs shadow min-w-[56px] text-center mb-1">Max</span>
+                <span className="text-xs font-mono text-green-600 bg-white rounded px-1 shadow-sm border border-green-100">{maxPrice.toFixed(4)}</span>
+              </div>
+            )}
           </div>
-          {/* 价格值列表（竖直方向右侧） */}
-          <div className="flex flex-col justify-between h-full ml-6 py-2 w-24">
-            {displayTicks.slice().reverse().map((tick, i) => (
-              <span key={i} className="text-xs text-gray-500">${Number(tick.price).toPrecision(4)}</span>
+          {/* 横向价格刻度 */}
+          <div className="flex flex-row justify-between w-full mt-2">
+            {displayTicks.map((tick, i) => (
+              <div key={i} className="flex flex-col items-center w-1/12">
+                <span className="text-xs text-gray-500">{tick.toFixed(3)}</span>
+              </div>
             ))}
           </div>
         </div>

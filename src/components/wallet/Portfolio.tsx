@@ -54,7 +54,6 @@ export const Portfolio = () => {
           </div>
           <p className="font-semibold">{formatNumber(portfolio[0].userTotalValueUSD)}</p>
         </div>
-        
         <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
           <div className="flex items-center mb-1">
             <TrendingUp className="w-4 h-4 text-green-500 mr-1" />
@@ -62,7 +61,6 @@ export const Portfolio = () => {
           </div>
           <p className="font-semibold">{portfolio[0].userApr.toFixed(2)}%</p>
         </div>
-        
         <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
           <div className="flex items-center mb-1">
             <Coins className="w-4 h-4 text-amber-500 mr-1" />
@@ -70,60 +68,6 @@ export const Portfolio = () => {
           </div>
           <p className="font-semibold">{formatNumber(portfolio[0].expectedDailyFee)}</p>
         </div>
-      </div>
-      
-      <div className="mt-6">
-        <div className="flex items-center space-x-2 mb-4">
-          <History className="w-5 h-5 text-blue-500" />
-          <h3 className="text-lg font-semibold">Liquidity History</h3>
-        </div>
-        
-        {liquidityHistory.length > 0 ? (
-          <div className="space-y-4">
-            {liquidityHistory.map((item) => (
-              <div key={item.id} className="bg-white p-4 rounded-lg border border-gray-200">
-                <div className="text-sm text-gray-500 mb-3">
-                  {formatDate(item.createdAt)}
-                </div>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
-                    <div className="flex items-center space-x-2 mb-3">
-                      <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-600 text-sm font-medium">
-                        1
-                      </div>
-                      <ArrowRight className="w-4 h-4 text-blue-500" />
-                      <div className="text-sm font-medium text-blue-700">Swap</div>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <TokenAmount amount={item.swapTokenAmount} symbol="TRUMP" />
-                        <ArrowRight className="w-4 h-4 text-blue-400" />
-                        <TokenAmount amount={item.swapSolAmount} symbol="SOL" />
-                      </div>
-                    </div>
-                  </div>
-                  <div className="bg-green-50 p-4 rounded-lg border border-green-100">
-                    <div className="flex items-center space-x-2 mb-3">
-                      <div className="flex items-center justify-center w-6 h-6 rounded-full bg-green-100 text-green-600 text-sm font-medium">
-                        2
-                      </div>
-                      <Plus className="w-4 h-4 text-green-500" />
-                      <div className="text-sm font-medium text-green-700">Add Liquidity</div>
-                    </div>
-                    <div className="space-y-2">
-                      <TokenAmount amount={item.addLiquidityTokenAmount} symbol="TRUMP" />
-                      <TokenAmount amount={item.addLiquiditySolAmount} symbol="SOL" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-6 text-gray-500 bg-gray-50 rounded-lg border border-gray-200">
-            No liquidity history available
-          </div>
-        )}
       </div>
     </div>
   );

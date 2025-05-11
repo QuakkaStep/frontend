@@ -76,6 +76,7 @@ interface AppContextType {
   setShowWalletModal: (show: boolean) => void;
   saveSuccess: boolean;
   setSaveSuccess: (success: boolean) => void;
+  hasUserConfig: boolean;
 }
 
 const defaultPoolData: PoolData = {
@@ -114,13 +115,28 @@ const defaultPortfolio = {
 };
 
 const defaultStrategy: StrategyConfig = {
-  maxPrice: 15,
-  minPrice: 9,
-  step: 5,
-  amountPerStep: 0.01,
+  maxPrice: 0,
+  minPrice: 0,
+  step: 0,
+  amountPerStep: 0,
 };
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL;
+const RAYDIUM_API = import.meta.env.VITE_RAYDIUM_API;
+const TRUMP_PRICE_API = import.meta.env.VITE_TRUMP_PRICE_API;
+const POOL_ID = import.meta.env.VITE_POOL_ID;
+const TOKEN_ADDRESS = import.meta.env.VITE_TOKEN_ADDRESS;
+
+// 业务API统一拼接
+const POOL_MONITOR_API = `${API_BASE}/pool-monitoring/info`;
+const AI_CONFIG_API = `${API_BASE}/liquidity/ai-config-generation`;
+const INIT_CONFIG_API = `${API_BASE}/user/init-config`;
+const USER_CONFIG_API = `${API_BASE}/user/configs`;
+const PORTFOLIO_API = `${API_BASE}/user/portfolio`;
+const LIQUIDITY_HISTORY_API = `${API_BASE}/liquidity/history`;
+const TOKEN_BALANCE_API = `${API_BASE}/user/token-balance`;
 
 export const AppContextProvider = ({ children }: { children: ReactNode }) => {
   const [wallet, setWallet] = useState<Wallet | null>(null);
@@ -131,10 +147,11 @@ export const AppContextProvider = ({ children }: { children: ReactNode }) => {
   const [strategy, setStrategy] = useState<StrategyConfig>(defaultStrategy);
   const [showWalletModal, setShowWalletModal] = useState<boolean>(false);
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
+  const [hasUserConfig, setHasUserConfig] = useState<boolean>(false);
 
   const fetchPoolInfo = async () => {
     try {
-      const response = await fetch('http://localhost:3002/pool-monitoring/info?poolId=GQsPr4RJk9AZkkfWHud7v4MtotcxhaYzZHdsPCg9vNvW');
+      const response = await fetch(`${POOL_MONITOR_API}?poolId=${POOL_ID}`);
       const result = await response.json();
       
       if (result.statusCode === 200) {
@@ -154,7 +171,7 @@ export const AppContextProvider = ({ children }: { children: ReactNode }) => {
 
   const fetchPortfolio = async (publicKey: string) => {
     try {
-      const response = await fetch(`http://localhost:3002/user/portfolio?publicKey=${publicKey}`);
+      const response = await fetch(`${PORTFOLIO_API}?publicKey=${publicKey}`);
       const result = await response.json();
       
       if (result.statusCode === 200) {
@@ -171,7 +188,7 @@ export const AppContextProvider = ({ children }: { children: ReactNode }) => {
 
   const fetchLiquidityHistory = async (publicKey: string) => {
     try {
-      const response = await fetch(`http://localhost:3002/liquidity/history?publicKey=${publicKey}`);
+      const response = await fetch(`${LIQUIDITY_HISTORY_API}?publicKey=${publicKey}`);
       const result = await response.json();
       
       if (result.statusCode === 200) {
@@ -188,7 +205,7 @@ export const AppContextProvider = ({ children }: { children: ReactNode }) => {
 
   const fetchTokenBalances = async (publicKey: string) => {
     try {
-      const response = await fetch(`http://localhost:3002/user/token-balance?publicKey=${publicKey}`);
+      const response = await fetch(`${TOKEN_BALANCE_API}?publicKey=${publicKey}`);
       const result = await response.json();
       
       if (result.statusCode === 200) {
@@ -203,6 +220,27 @@ export const AppContextProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const fetchUserConfig = async (publicKey: string) => {
+    try {
+      const response = await fetch(`${USER_CONFIG_API}?publicKey=${publicKey}&tokenAddress=${TOKEN_ADDRESS}`);
+      const result = await response.json();
+      if (result.statusCode === 200 && result.data) {
+        setStrategy(prev => ({
+          ...prev,
+          step: parseFloat(result.data.stepPercentage),
+          amountPerStep: parseFloat(result.data.perAddedLiquidity),
+          minPrice: parseFloat(result.data.minPrice),
+          maxPrice: parseFloat(result.data.maxPrice),
+        }));
+        setHasUserConfig(true);
+      } else {
+        setHasUserConfig(false);
+      }
+    } catch (error) {
+      setHasUserConfig(false);
+    }
+  };
+
   // Fetch pool info when component mounts
   React.useEffect(() => {
     fetchPoolInfo();
@@ -213,11 +251,10 @@ export const AppContextProvider = ({ children }: { children: ReactNode }) => {
 
   const generateWallet = async () => {
     try {
-      const response = await fetch('http://localhost:3002/user/generate-wallet');
+      const response = await fetch(`${API_BASE}/user/generate-wallet`);
       const result = await response.json();
 
       console.log(`generateWallet, ${result}`);
-      
       
       if (result.statusCode === 200) {
         const newWallet = {
@@ -247,6 +284,7 @@ export const AppContextProvider = ({ children }: { children: ReactNode }) => {
     fetchPortfolio(publicKey);
     fetchLiquidityHistory(publicKey);
     fetchTokenBalances(publicKey);
+    fetchUserConfig(publicKey);
   };
 
   const disconnectWallet = () => {
@@ -265,8 +303,8 @@ export const AppContextProvider = ({ children }: { children: ReactNode }) => {
     setStrategy({
       maxPrice: parseFloat((currentPrice * 1.3).toFixed(2)),
       minPrice: parseFloat((currentPrice * 0.7).toFixed(2)),
-      step: 5,
-      amountPerStep: 0.01,
+      step: 0,
+      amountPerStep: 0,
     });
   };
 
@@ -292,6 +330,7 @@ export const AppContextProvider = ({ children }: { children: ReactNode }) => {
     setShowWalletModal,
     saveSuccess,
     setSaveSuccess,
+    hasUserConfig,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
