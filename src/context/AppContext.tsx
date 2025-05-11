@@ -129,6 +129,14 @@ const TRUMP_PRICE_API = import.meta.env.VITE_TRUMP_PRICE_API;
 const POOL_ID = import.meta.env.VITE_POOL_ID;
 const TOKEN_ADDRESS = import.meta.env.VITE_TOKEN_ADDRESS;
 
+// 添加环境变量检查日志
+console.log('Environment Variables Check:');
+console.log('API_BASE:', API_BASE);
+console.log('RAYDIUM_API:', RAYDIUM_API);
+console.log('TRUMP_PRICE_API:', TRUMP_PRICE_API);
+console.log('POOL_ID:', POOL_ID);
+console.log('TOKEN_ADDRESS:', TOKEN_ADDRESS);
+
 // 业务API统一拼接
 const POOL_MONITOR_API = `${API_BASE}/pool-monitoring/info`;
 const AI_CONFIG_API = `${API_BASE}/liquidity/ai-config-generation`;
