@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import { BarChart3 } from 'lucide-react';
+import { fetchWithHeaders } from '../../utils/api';
 
 const RAYDIUM_API = import.meta.env.VITE_RAYDIUM_API;
 const API_BASE = import.meta.env.VITE_API_BASE_URL;
 
-const POOL_MONITOR_API = `${API_BASE}/pool-monitoring/info`;
+const POOL_MONITOR_API = `/pool-monitoring/info`;
 const POOL_ID = import.meta.env.VITE_POOL_ID;
 
 interface Tick {
@@ -22,7 +23,7 @@ export const PriceRange = () => {
   const { strategy } = useAppContext();
 
   useEffect(() => {
-    
+
     fetch(`${RAYDIUM_API}?id=${POOL_ID}`)
       .then(res => {
         if (!res.ok) throw new Error('Raydium API request failed');
@@ -37,13 +38,8 @@ export const PriceRange = () => {
       })
       .catch(() => setErrorMsg('Raydium API: Failed to fetch data'));
 
-      console.log(`${POOL_MONITOR_API}?poolId=${POOL_ID}`);
-      
-    fetch(`${POOL_MONITOR_API}?poolId=${POOL_ID}`)
-      .then(res => {
-        if (!res.ok) throw new Error('Pool monitor API request failed');
-        return res.json();
-      })
+
+    fetchWithHeaders(`${POOL_MONITOR_API}?poolId=${POOL_ID}`)
       .then(data => {
         if (data?.statusCode === 200) {
           setCurrentPrice(data.data.price);
@@ -52,6 +48,7 @@ export const PriceRange = () => {
         }
       })
       .catch(() => setErrorMsg('Pool monitor API: Failed to fetch data'));
+
   }, []);
 
   // min/max price from context
