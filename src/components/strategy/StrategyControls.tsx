@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import { Sparkles, Save } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
+import { fetchWithHeaders } from '../../utils/api';
 
-const AI_CONFIG_API = 'http://localhost:3002/liquidity/ai-config-generation';
 const TOKEN_ADDRESS = '6p6xgHyF7AeE6TZkSmFsko444wqoP15icUSqi2jfGiPN';
-const INIT_CONFIG_API = 'http://localhost:3002/user/init-config';
 const POOL_ID = 'GQsPr4RJk9AZkkfWHud7v4MtotcxhaYzZHdsPCg9vNvW';
 
 export const StrategyControls = () => {
@@ -17,8 +16,7 @@ export const StrategyControls = () => {
     if (!walletExists) return;
     setLoading(true);
     try {
-      const res = await fetch(`${AI_CONFIG_API}?publicKey=${wallet.address}&tokenAddress=${TOKEN_ADDRESS}`);
-      const data = await res.json();
+      const data = await fetchWithHeaders(`/liquidity/ai-config-generation?publicKey=${wallet.address}&tokenAddress=${TOKEN_ADDRESS}`);
       if (data.statusCode === 200 && data.data) {
         updateStrategy({
           step: data.data.stepPercentage,
@@ -38,9 +36,8 @@ export const StrategyControls = () => {
     if (!walletExists) return;
     setSaving(true);
     try {
-      const res = await fetch(INIT_CONFIG_API, {
+      const data = await fetchWithHeaders('/user/init-config', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           publicKey: wallet.address,
           poolId: POOL_ID,
@@ -50,7 +47,6 @@ export const StrategyControls = () => {
           maxPrice: strategy.maxPrice,
         })
       });
-      const data = await res.json();
       if (data.statusCode === 200) {
         setSaveSuccess(true);
       } else {

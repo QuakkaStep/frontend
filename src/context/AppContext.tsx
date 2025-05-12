@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
+import { fetchWithHeaders } from '../utils/api';
 
 interface Wallet {
   address: string;
@@ -123,7 +124,7 @@ const defaultStrategy: StrategyConfig = {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL;
+export const API_BASE = import.meta.env.VITE_API_BASE_URL;
 const RAYDIUM_API = import.meta.env.VITE_RAYDIUM_API;
 const TRUMP_PRICE_API = import.meta.env.VITE_TRUMP_PRICE_API;
 const POOL_ID = import.meta.env.VITE_POOL_ID;
@@ -159,8 +160,7 @@ export const AppContextProvider = ({ children }: { children: ReactNode }) => {
 
   const fetchPoolInfo = async () => {
     try {
-      const response = await fetch(`${POOL_MONITOR_API}?poolId=${POOL_ID}`);
-      const result = await response.json();
+      const result = await fetchWithHeaders(`/pool-monitoring/info?poolId=${POOL_ID}`);
       
       if (result.statusCode === 200) {
         setPoolData({
@@ -179,8 +179,7 @@ export const AppContextProvider = ({ children }: { children: ReactNode }) => {
 
   const fetchPortfolio = async (publicKey: string) => {
     try {
-      const response = await fetch(`${PORTFOLIO_API}?publicKey=${publicKey}`);
-      const result = await response.json();
+      const result = await fetchWithHeaders(`/user/portfolio?publicKey=${publicKey}`);
       
       if (result.statusCode === 200) {
         setPortfolio(result.data);
@@ -196,8 +195,7 @@ export const AppContextProvider = ({ children }: { children: ReactNode }) => {
 
   const fetchLiquidityHistory = async (publicKey: string) => {
     try {
-      const response = await fetch(`${LIQUIDITY_HISTORY_API}?publicKey=${publicKey}`);
-      const result = await response.json();
+      const result = await fetchWithHeaders(`/liquidity/history?publicKey=${publicKey}`);
       
       if (result.statusCode === 200) {
         setLiquidityHistory(result.data);
@@ -213,8 +211,7 @@ export const AppContextProvider = ({ children }: { children: ReactNode }) => {
 
   const fetchTokenBalances = async (publicKey: string) => {
     try {
-      const response = await fetch(`${TOKEN_BALANCE_API}?publicKey=${publicKey}`);
-      const result = await response.json();
+      const result = await fetchWithHeaders(`/user/token-balance?publicKey=${publicKey}`);
       
       if (result.statusCode === 200) {
         setTokenBalances(result.data);
@@ -230,8 +227,7 @@ export const AppContextProvider = ({ children }: { children: ReactNode }) => {
 
   const fetchUserConfig = async (publicKey: string) => {
     try {
-      const response = await fetch(`${USER_CONFIG_API}?publicKey=${publicKey}&tokenAddress=${TOKEN_ADDRESS}`);
-      const result = await response.json();
+      const result = await fetchWithHeaders(`/user/configs?publicKey=${publicKey}&tokenAddress=${TOKEN_ADDRESS}`);
       if (result.statusCode === 200 && result.data) {
         setStrategy(prev => ({
           ...prev,
@@ -259,8 +255,7 @@ export const AppContextProvider = ({ children }: { children: ReactNode }) => {
 
   const generateWallet = async () => {
     try {
-      const response = await fetch(`${API_BASE}/user/generate-wallet`);
-      const result = await response.json();
+      const result = await fetchWithHeaders('/user/generate-wallet');
 
       console.log(`generateWallet, ${result}`);
       
